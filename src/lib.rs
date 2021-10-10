@@ -73,6 +73,10 @@ impl Universe {
     pub fn cells(&self) -> *const Cell {
         self.cells.as_ptr()
     }
+    pub fn cell(&self, width: u32, height: u32) -> Cell {
+        let idx = self.get_index(width, height);
+        self.cells[idx]
+    }
 
     pub fn tick(&mut self) {
         let mut next = self.cells.clone();

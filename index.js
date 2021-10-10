@@ -1,4 +1,4 @@
-import { Universe, Cell, memory } from "./pkg/wasm.js";
+import { Universe, Cell } from "./pkg/wasm.js";
 
 import init from './pkg/wasm.js';
 
@@ -54,21 +54,14 @@ function run() {
   };
   
   const drawCells = () => {
-    const cellsPtr = universe.cells();
-    const cells = new Uint8Array(memory.buffer, cellsPtr, width * height);
-  
     ctx.beginPath();
+
   
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
-        const idx = getIndex(row, col);
-        if (cells[idx] == Cell.DEAD) {
-          console.log("" + idx + " DEAD")
-        } else {
-          console.log("" + idx + " ALIVE")
-        }
+        let cell = universe.cell(row, col);
   
-        ctx.fillStyle = cells[idx] === Cell.Dead
+        ctx.fillStyle = cell === Cell.Dead
           ? DEAD_COLOR
           : ALIVE_COLOR;
   
@@ -89,6 +82,6 @@ drawCells();
 requestAnimationFrame(renderLoop);
 }
 
-console.log("hello!");
+console.log("HI!");
 
 init().then(run)
