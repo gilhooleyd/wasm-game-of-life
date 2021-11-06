@@ -3,6 +3,9 @@ name = "wasm-game-of-life"
 version = "0.1.0"
 authors = ["dgilhooley"]
 edition = "2018"
+description = "Game of life that works in the browser by using WASM"
+repository = "https://github.com/gilhooleyd/wasm-game-of-life"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -41,10 +44,17 @@ wasm-opt = false
 [dependencies.web-sys]
 version = "0.3.4"
 features = [
+
   'CanvasRenderingContext2d',
+  'CssStyleDeclaration',
   'Document',
   'Element',
+  'EventTarget',
   'HtmlCanvasElement',
+  'HtmlElement',
+  'MouseEvent',
+  'Node',
   'Window',
-  "console",
+  'console',
+
 ]

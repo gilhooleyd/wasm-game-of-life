@@ -2,7 +2,6 @@ mod utils;
 
 use std::cell::RefCell;
 use std::f64;
-use std::fmt;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -53,9 +52,7 @@ impl Universe {
         }
         count
     }
-}
 
-impl Universe {
     pub fn width(&self) -> u32 {
         self.width
     }
@@ -70,6 +67,15 @@ impl Universe {
     pub fn cell(&self, width: u32, height: u32) -> Cell {
         let idx = self.get_index(width, height);
         self.cells[idx]
+    }
+
+    pub fn toggle_cell(&mut self, width: u32, height: u32) {
+        let idx = self.get_index(width, height);
+        if self.cells[idx] == Cell::Alive {
+            self.cells[idx] = Cell::Dead;
+        } else {
+            self.cells[idx] = Cell::Alive;
+        }
     }
 
     pub fn tick(&mut self) {
@@ -128,6 +134,7 @@ impl Universe {
 }
 
 pub struct Canvas {
+    canvas: web_sys::HtmlCanvasElement,
     context: web_sys::CanvasRenderingContext2d,
     universe: Universe,
 
@@ -136,6 +143,7 @@ pub struct Canvas {
     dead_color: wasm_bindgen::JsValue,
     alive_color: wasm_bindgen::JsValue,
 }
+
 impl Canvas {
     fn new(universe: Universe, canvas: web_sys::HtmlCanvasElement) -> Canvas {
         let cell_size = 10;
@@ -150,6 +158,7 @@ impl Canvas {
             .unwrap();
 
         Canvas {
+            canvas: canvas,
             context: context,
             cell_size: cell_size,
             grid_color: wasm_bindgen::JsValue::from_str("#CCCCCC"),
@@ -231,21 +240,66 @@ pub fn start() {
         .map_err(|_| ())
         .unwrap();
 
-    let mut canvas = Canvas::new(Universe::new(), canvas);
-    canvas.draw_grid();
-    canvas.draw_cells();
+    let canvas = Rc::new(RefCell::new(Canvas::new(Universe::new(), canvas)));
+    canvas.borrow_mut().draw_grid();
+    canvas.borrow_mut().draw_cells();
 
-    let f = Rc::new(RefCell::new(None));
-    let g = f.clone();
+    let is_running = Rc::new(RefCell::new(false));
 
-    *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        canvas.universe.tick();
-        canvas.draw_grid();
-        canvas.draw_cells();
+    // Create the animation callback.
+    let animation_callback = Rc::new(RefCell::new(None));
+    {
+        let is_running = is_running.clone();
+        let canvas = canvas.clone();
 
-        // Schedule ourself for another requestAnimationFrame callback.
-        request_animation_frame(f.borrow().as_ref().unwrap());
-    }) as Box<dyn FnMut()>));
+        let callback = animation_callback.clone();
+        *animation_callback.borrow_mut() = Some(Closure::wrap(Box::new(move || {
+            canvas.borrow_mut().universe.tick();
+            canvas.borrow_mut().draw_grid();
+            canvas.borrow_mut().draw_cells();
 
-    request_animation_frame(g.borrow().as_ref().unwrap());
+            // Schedule ourself for another requestAnimationFrame callback.
+            if *is_running.borrow() {
+                request_animation_frame(callback.borrow().as_ref().unwrap());
+            }
+        }) as Box<dyn FnMut()>));
+        request_animation_frame(animation_callback.borrow().as_ref().unwrap());
+    }
+
+    // Create the play button callback.
+    {
+        let animation_callback = animation_callback.clone();
+        let play_callback = Closure::wrap(Box::new(move || {
+            let is_running = is_running.clone();
+            let is_running_val = *is_running.borrow();
+            *is_running.borrow_mut() = !is_running_val;
+            if !is_running_val {
+                request_animation_frame(animation_callback.borrow().as_ref().unwrap());
+            }
+        }) as Box<dyn FnMut()>);
+        document
+            .get_element_by_id("play-pause")
+            .expect("should have #play-pause on the page")
+            .dyn_ref::<web_sys::HtmlElement>()
+            .expect("#play-pause be an `HtmlElement`")
+            .set_onclick(Some(play_callback.as_ref().unchecked_ref()));
+        play_callback.forget();
+    }
+
+    // Create the click callback.
+    {
+        let my_canvas = canvas.clone();
+        let click_callback = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+            let row = event.offset_y() as u32 / (my_canvas.borrow().cell_size + 1);
+            let col = event.offset_x() as u32 / (my_canvas.borrow().cell_size + 1);
+            my_canvas.borrow_mut().universe.toggle_cell(row, col);
+            my_canvas.borrow_mut().draw_cells();
+        }) as Box<dyn FnMut(_)>);
+        canvas
+            .borrow_mut()
+            .canvas
+            .add_event_listener_with_callback("click", click_callback.as_ref().unchecked_ref())
+            .unwrap();
+        click_callback.forget();
+    }
 }

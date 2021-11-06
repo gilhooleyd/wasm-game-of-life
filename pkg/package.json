@@ -3,7 +3,13 @@
   "collaborators": [
     "dgilhooley"
   ],
+  "description": "Game of life that works in the browser by using WASM",
   "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gilhooleyd/wasm-game-of-life"
+  },
   "files": [
     "wasm_game_of_life_bg.wasm",
     "wasm_game_of_life.js",
