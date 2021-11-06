@@ -1,8 +1,11 @@
 mod utils;
 
-use wasm_bindgen::prelude::*;
+use std::cell::RefCell;
+use std::f64;
 use std::fmt;
-
+use std::rc::Rc;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -11,7 +14,7 @@ use std::fmt;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
-extern {
+extern "C" {
     fn alert(s: &str);
 }
 
@@ -51,7 +54,6 @@ impl Universe {
         }
         count
     }
-
 }
 
 /// Public methods, exported to JavaScript.
@@ -146,12 +148,101 @@ impl fmt::Display for Universe {
     }
 }
 
-use std::f64;
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
+pub struct Canvas {
+    context: web_sys::CanvasRenderingContext2d,
+    universe: Universe,
+
+    cell_size: u32,
+    grid_color: wasm_bindgen::JsValue,
+    dead_color: wasm_bindgen::JsValue,
+    alive_color: wasm_bindgen::JsValue,
+}
+impl Canvas {
+    fn new(universe: Universe, canvas: web_sys::HtmlCanvasElement) -> Canvas {
+        let cell_size = 10;
+        canvas.set_height((cell_size + 1) * universe.height() + 1);
+        canvas.set_width((cell_size + 1) * universe.width() + 1);
+
+        let context = canvas
+            .get_context("2d")
+            .unwrap()
+            .unwrap()
+            .dyn_into::<web_sys::CanvasRenderingContext2d>()
+            .unwrap();
+
+        Canvas {
+            context: context,
+            cell_size: cell_size,
+            grid_color: wasm_bindgen::JsValue::from_str("#CCCCCC"),
+            dead_color: wasm_bindgen::JsValue::from_str("#FFFFFF"),
+            alive_color: wasm_bindgen::JsValue::from_str("#000000"),
+            universe: universe,
+        }
+    }
+    fn draw_grid(&self) {
+        let cell_size = &self.cell_size;
+        let universe = &self.universe;
+        let context = &self.context;
+
+        self.context.begin_path();
+        self.context.set_stroke_style(&self.grid_color);
+
+        for i in 0..self.universe.width() {
+            context.move_to((i * (cell_size + 1)) as f64, 0 as f64);
+            context.line_to(
+                (i * (cell_size + 1) + 1) as f64,
+                ((cell_size + 1) * universe.height + 1) as f64,
+            );
+        }
+
+        for i in 0..universe.height() {
+            context.move_to(0 as f64, (i * (cell_size + 1)) as f64);
+            context.line_to(
+                (i * (cell_size + 1) * universe.width() + 1) as f64,
+                (i * (cell_size + 1) + 1) as f64,
+            );
+        }
+
+        context.stroke();
+    }
+
+    fn draw_cells(&self) {
+        self.context.begin_path();
+
+        let cell_size = &self.cell_size;
+        for row in 0..self.universe.height() {
+            for col in 0..self.universe.width() {
+                if self.universe.cell(row, col) == Cell::Dead {
+                    self.context.set_fill_style(&self.dead_color);
+                } else {
+                    self.context.set_fill_style(&self.alive_color);
+                }
+
+                self.context.fill_rect(
+                    (col * (cell_size + 1) + 1) as f64,
+                    (row * (cell_size + 1) + 1) as f64,
+                    *cell_size as f64,
+                    *cell_size as f64,
+                );
+            }
+        }
+        self.context.stroke();
+    }
+}
+
+fn window() -> web_sys::Window {
+    web_sys::window().expect("no global `window` exists")
+}
+
+fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+    window()
+        .request_animation_frame(f.as_ref().unchecked_ref())
+        .expect("should register `requestAnimationFrame` OK");
+}
 
 #[wasm_bindgen(start)]
 pub fn start() {
+
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document.get_element_by_id("canvas").unwrap();
     let canvas: web_sys::HtmlCanvasElement = canvas
@@ -159,35 +250,21 @@ pub fn start() {
         .map_err(|_| ())
         .unwrap();
 
-    let context = canvas
-        .get_context("2d")
-        .unwrap()
-        .unwrap()
-        .dyn_into::<web_sys::CanvasRenderingContext2d>()
-        .unwrap();
+    let mut canvas = Canvas::new(Universe::new(), canvas);
+    canvas.draw_grid();
+    canvas.draw_cells();
 
-    context.begin_path();
+    let f = Rc::new(RefCell::new(None));
+    let g = f.clone();
 
-    // Draw the outer circle.
-    context
-        .arc(75.0, 75.0, 50.0, 0.0, f64::consts::PI * 2.0)
-        .unwrap();
+    *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
+        canvas.universe.tick();
+        canvas.draw_grid();
+        canvas.draw_cells();
 
-    // Draw the mouth.
-    context.move_to(110.0, 75.0);
-    context.arc(75.0, 75.0, 35.0, 0.0, f64::consts::PI).unwrap();
+        // Schedule ourself for another requestAnimationFrame callback.
+        request_animation_frame(f.borrow().as_ref().unwrap());
+    }) as Box<dyn FnMut()>));
 
-    // Draw the left eye.
-    context.move_to(65.0, 65.0);
-    context
-        .arc(60.0, 65.0, 5.0, 0.0, f64::consts::PI * 2.0)
-        .unwrap();
-
-    // Draw the right eye.
-    context.move_to(95.0, 65.0);
-    context
-        .arc(90.0, 65.0, 5.0, 0.0, f64::consts::PI * 2.0)
-        .unwrap();
-
-    context.stroke();
+    request_animation_frame(g.borrow().as_ref().unwrap());
 }
