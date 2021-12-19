@@ -8,14 +8,24 @@ It has also been updated so there is *no* javascript, all of the code is written
 
 The [web-sys library](https://rustwasm.github.io/wasm-bindgen/examples/dom.html) tutorials were really helpful.
 
-## Building
+## Setup
+
+The setup installs the wasm32 rust tool chain and the wasm-pack tool.
 
 ```
-wasm-pack build --target web
+make setup
+```
+
+## Building
+
+Building creates the website in the pkg/ directory.
+
+```
+make
 ```
 
 ## Running locally
 
 ```
-python -m SimpleHTTPServer
+make serve
 ```
