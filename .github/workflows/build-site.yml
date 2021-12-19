@@ -7,22 +7,19 @@ jobs:
   build-site:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v2
-      - name: Rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
         with:
             target: wasm32-unknown-unknown 
             override: true
-      - name: Wasm-pack 
-        uses: jetli/wasm-pack-action@v0.3.0
-        run:  |
+      - uses: jetli/wasm-pack-action@v0.3.0
+      - run:  |
           wasm-pack build --target web
           cp index.html pkg/
           cp index.js pkg/
 
       - name: Deploy 🚀
-       uses: JamesIves/github-pages-deploy-action@4.1.7
+        uses: JamesIves/github-pages-deploy-action@4.1.7
         with:
           branch: gh-pages # The branch the action should deploy to.
           folder: pkg # The folder the action should deploy.
