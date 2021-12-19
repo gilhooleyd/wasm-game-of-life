@@ -8,11 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-            target: wasm32-unknown-unknown 
       - uses: jetli/wasm-pack-action@v0.3.0
       - run:  |
+          rustup target add wasm32-unknown-unknown 
           wasm-pack build --target web
           cp index.html pkg/
           cp index.js pkg/
