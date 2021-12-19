@@ -12,11 +12,11 @@ jobs:
       - run:  |
           rustup target add wasm32-unknown-unknown 
           wasm-pack build --target web
-          cp pkg/*.wasm site/
-          cp pkg/*.js site/
+          cp site/* pkg/
+          rm pkg/.gitignore
 
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@4.1.7
         with:
           branch: gh-pages # The branch the action should deploy to.
-          folder: site # The folder the action should deploy.
+          folder: pkg # The folder the action should deploy.
