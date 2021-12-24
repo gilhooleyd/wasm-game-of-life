@@ -13,7 +13,7 @@ The [web-sys library](https://rustwasm.github.io/wasm-bindgen/examples/dom.html)
 The setup installs the wasm32 rust tool chain and the wasm-pack tool.
 
 ```
-make setup
+cargo xtask setup
 ```
 
 ## Building
@@ -21,11 +21,11 @@ make setup
 Building creates the website in the pkg/ directory.
 
 ```
-make
+cargo xtask build
 ```
 
 ## Running locally
 
 ```
-make serve
+cargo xtask serve
 ```
