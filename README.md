@@ -1,5 +1,8 @@
 # wasm-game-of-life
 
+See the project in action
+[here](https://gilhooleyd.github.io/wasm-game-of-life/).
+
 This project is based on the [Rust and Webassembly](https://rustwasm.github.io/docs/book/introduction.html) project.
 
 It has been updated to be a static site instead of a node module.
